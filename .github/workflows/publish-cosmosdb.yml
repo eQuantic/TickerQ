@@ -25,17 +25,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Get version
+      - name: Get versions
         id: get-version
         run: |
+          # Get TickerQ version from VERSION file (for dependencies like TickerQ.Utilities)
+          TICKERQ_VERSION=$(cat VERSION)
+          echo "tickerq_version=$TICKERQ_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 TickerQ version (dependencies): $TICKERQ_VERSION"
+
+          # Get CosmosDb version from .csproj or workflow input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+            COSMOSDB_VERSION="${{ github.event.inputs.version }}"
           else
-            # Extract version from .csproj
-            VERSION=$(grep -oP '<Version>\K[^<]+' src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj)
+            COSMOSDB_VERSION=$(grep -oP '<Version>\K[^<]+' src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj)
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Package version: $VERSION"
+          echo "version=$COSMOSDB_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 CosmosDb package version: $COSMOSDB_VERSION"
 
       - name: Check if package already exists on NuGet
         id: check
@@ -62,18 +67,21 @@ jobs:
       - name: Build dependencies in correct order
         if: steps.check.outputs.should_publish == 'true'
         run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
+          TICKERQ_VERSION="${{ steps.get-version.outputs.tickerq_version }}"
+          COSMOSDB_VERSION="${{ steps.get-version.outputs.version }}"
 
-          # Step 0: Create PackageVersion.props for consistent builds
+          echo "📦 Building with TickerQ v$TICKERQ_VERSION, CosmosDb v$COSMOSDB_VERSION"
+
+          # Step 0: Create PackageVersion.props with TickerQ version (for dependencies)
           cat > PackageVersion.props <<EOF
           <Project>
             <PropertyGroup>
-              <PackageVersion>$VERSION</PackageVersion>
+              <PackageVersion>$TICKERQ_VERSION</PackageVersion>
             </PropertyGroup>
           </Project>
           EOF
 
-          # Step 1: Build and pack TickerQ.Utilities first
+          # Step 1: Build and pack TickerQ.Utilities with TickerQ version (2.5.3)
           dotnet build src/TickerQ.Utilities/TickerQ.Utilities.csproj --configuration Release
           dotnet pack src/TickerQ.Utilities/TickerQ.Utilities.csproj --configuration Release --output ./temp-nupkgs
 
@@ -83,15 +91,22 @@ jobs:
           # Step 3: Build TickerQ.SourceGenerator
           dotnet build src/TickerQ.SourceGenerator/TickerQ.SourceGenerator.csproj --configuration Release
 
-          # Step 4: Build dependencies
+          # Step 4: Build dependencies with TickerQ version
           dotnet build src/TickerQ/TickerQ.csproj --configuration Release -p:GeneratePackageOnBuild=false
           dotnet build src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj --configuration Release -p:GeneratePackageOnBuild=false
 
-          # Step 5: Pack CosmosDb provider
+          # Step 5: Build and pack CosmosDb provider with CosmosDb version (1.0.0)
+          # Build uses PackageVersion from .props (2.5.3) for dependencies
+          dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
+            --configuration Release \
+            -p:GeneratePackageOnBuild=false
+
+          # Pack overrides PackageVersion to use CosmosDb version (1.0.0)
           dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
             --configuration Release \
+            --no-build \
             --output ./nupkgs \
-            -p:Version=$VERSION
+            -p:PackageVersion=$COSMOSDB_VERSION
 
           # Cleanup
           rm -f PackageVersion.props
