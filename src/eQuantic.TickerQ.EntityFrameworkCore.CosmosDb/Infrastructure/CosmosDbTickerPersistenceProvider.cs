@@ -117,8 +117,9 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
                 foreach (var ticker in availableTickers)
                 {
+                    // Lock idle tickers or steal queued ones from other nodes, but never re-lock own queued ones
                     if ((ticker.LockHolder == null && ticker.Status == TickerStatus.Idle) ||
-                        (ticker.LockHolder == lockHolder && ticker.Status == TickerStatus.Queued))
+                        (ticker.LockHolder != lockHolder && ticker.Status == TickerStatus.Queued))
                     {
                         ticker.Status = TickerStatus.Queued;
                         ticker.LockHolder = lockHolder;
@@ -489,7 +490,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrence?.ToCronTickerOccurrence<TCronTicker>();
+            return occurrence?.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronTickerOccurrencesByIds(Guid[] ids,
@@ -508,7 +509,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronTickerOccurrencesByCronTickerIds(Guid[] ids,
@@ -525,12 +526,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
             var occurrences = await query
                 .Where(x => ids.Contains(x.CronTickerId) &&
-                           x.OccurrenceTime >= roundedMinDate.AddSeconds(-2) &&
-                           x.OccurrenceTime < roundedMinDate.AddSeconds(1))
+                           x.ExecutionTime >= roundedMinDate.AddSeconds(-2) &&
+                           x.ExecutionTime < roundedMinDate.AddSeconds(1))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetNextCronTickerOccurrences(DateTime nextOccurrence,
@@ -547,9 +548,9 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                     .Where(x =>
                         ((x.LockHolder == null && x.Status == TickerStatus.Idle) ||
                          (x.LockHolder == lockHolder && x.Status == TickerStatus.Queued)) &&
-                        x.OccurrenceTime >= nextOccurrence.AddSeconds(-2) &&
-                        x.OccurrenceTime < nextOccurrence.AddSeconds(1))
-                    .OrderBy(x => x.OccurrenceTime)
+                        x.ExecutionTime >= nextOccurrence.AddSeconds(-2) &&
+                        x.ExecutionTime < nextOccurrence.AddSeconds(1))
+                    .OrderBy(x => x.ExecutionTime)
                     .Take(batchSize)
                     .ToListAsync(cancellationToken)
                     .ConfigureAwait(false);
@@ -564,8 +565,9 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
                 foreach (var occurrence in availableOccurrences)
                 {
+                    // Lock idle occurrences or steal queued ones from other nodes, but never re-lock own queued ones
                     if ((occurrence.LockHolder == null && occurrence.Status == TickerStatus.Idle) ||
-                        (occurrence.LockHolder == lockHolder && occurrence.Status == TickerStatus.Queued))
+                        (occurrence.LockHolder != lockHolder && occurrence.Status == TickerStatus.Queued))
                     {
                         occurrence.Status = TickerStatus.Queued;
                         occurrence.LockHolder = lockHolder;
@@ -577,7 +579,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 if (successfulOccurrences.Any())
                 {
                     await DbContext.SaveChangesAsync(cancellationToken);
-                    var result = successfulOccurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+                    var result = successfulOccurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
                     DetachAll<CronTickerOccurrenceEntity<CronTickerEntity>>();
                     return result;
                 }
@@ -609,7 +611,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetExistingCronTickerOccurrences(
@@ -626,11 +628,11 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
             var occurrences = await query
                 .Where(x => cronTickerIds.Contains(x.CronTickerId) &&
-                           occurrenceTimes.Contains(x.OccurrenceTime))
+                           occurrenceTimes.Contains(x.ExecutionTime))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetTimedOutCronTickerOccurrences(DateTime now,
@@ -646,12 +648,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
             var occurrences = await query
                 .Where(x =>
-                    (x.Status == TickerStatus.Idle && x.OccurrenceTime.AddSeconds(1) < now) ||
-                    (x.Status == TickerStatus.Queued && x.OccurrenceTime.AddSeconds(3) < now))
+                    (x.Status == TickerStatus.Idle && x.ExecutionTime.AddSeconds(1) < now) ||
+                    (x.Status == TickerStatus.Queued && x.ExecutionTime.AddSeconds(3) < now))
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetQueuedNextCronOccurrences(Guid tickerId,
@@ -669,12 +671,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
             var occurrences = await query
                 .Where(x => x.CronTickerId == tickerId &&
                            x.Status == TickerStatus.Queued &&
-                           x.OccurrenceTime >= now)
-                .OrderBy(x => x.OccurrenceTime)
+                           x.ExecutionTime >= now)
+                .OrderBy(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronOccurrencesByCronTickerIdAndStatusFlag(
@@ -690,19 +692,19 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 : occurrenceContext.AsNoTracking();
 
             var statuses = isCompleted
-                ? new[] { TickerStatus.Completed, TickerStatus.CompletedWithErrors, TickerStatus.Failed }
-                : new[] { TickerStatus.Idle, TickerStatus.Queued, TickerStatus.Running, TickerStatus.Cancelled };
+                ? new[] { TickerStatus.Done, TickerStatus.Failed }
+                : new[] { TickerStatus.Idle, TickerStatus.Queued, TickerStatus.Inprogress, TickerStatus.Cancelled };
 
             var occurrences = await query
                 .Where(x => x.CronTickerId == cronTickerId &&
                            statuses.Contains(x.Status) &&
-                           x.OccurrenceTime >= startDate &&
-                           x.OccurrenceTime <= endDate)
-                .OrderBy(x => x.OccurrenceTime)
+                           x.ExecutionTime >= startDate &&
+                           x.ExecutionTime <= endDate)
+                .OrderBy(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetAllCronTickerOccurrences(
@@ -720,7 +722,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetAllLockedCronTickerOccurrences(
@@ -739,7 +741,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronTickerOccurrencesByCronTickerId(Guid cronTickerId,
@@ -755,11 +757,11 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
             var occurrences = await query
                 .Where(x => x.CronTickerId == cronTickerId)
-                .OrderBy(x => x.OccurrenceTime)
+                .OrderBy(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronTickerOccurrencesWithin(DateTime startDate,
@@ -775,11 +777,11 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 : occurrenceContext.AsNoTracking();
 
             var occurrences = await query
-                .Where(x => x.OccurrenceTime.Date >= startDate && x.OccurrenceTime.Date <= endDate)
+                .Where(x => x.ExecutionTime.Date >= startDate && x.ExecutionTime.Date <= endDate)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronTickerOccurrencesByCronTickerIdWithin(
@@ -796,13 +798,13 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
             var occurrences = await query
                 .Where(x => x.CronTickerId == cronTickerId &&
-                           x.OccurrenceTime.Date >= startDate &&
-                           x.OccurrenceTime.Date <= endDate)
-                .OrderBy(x => x.OccurrenceTime)
+                           x.ExecutionTime.Date >= startDate &&
+                           x.ExecutionTime.Date <= endDate)
+                .OrderBy(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetPastCronTickerOccurrencesByCronTickerId(
@@ -818,12 +820,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 : occurrenceContext.AsNoTracking();
 
             var occurrences = await query
-                .Where(x => x.CronTickerId == cronTickerId && x.OccurrenceTime < now)
-                .OrderByDescending(x => x.OccurrenceTime)
+                .Where(x => x.CronTickerId == cronTickerId && x.ExecutionTime < now)
+                .OrderByDescending(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetTodayCronTickerOccurrencesByCronTickerId(
@@ -839,12 +841,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 : occurrenceContext.AsNoTracking();
 
             var occurrences = await query
-                .Where(x => x.CronTickerId == cronTickerId && x.OccurrenceTime.Date == today.Date)
-                .OrderBy(x => x.OccurrenceTime)
+                .Where(x => x.CronTickerId == cronTickerId && x.ExecutionTime.Date == today.Date)
+                .OrderBy(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<CronTickerOccurrence<TCronTicker>[]> GetFutureCronTickerOccurrencesByCronTickerId(
@@ -860,12 +862,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
                 : occurrenceContext.AsNoTracking();
 
             var occurrences = await query
-                .Where(x => x.CronTickerId == cronTickerId && x.OccurrenceTime > now)
-                .OrderBy(x => x.OccurrenceTime)
+                .Where(x => x.CronTickerId == cronTickerId && x.ExecutionTime > now)
+                .OrderBy(x => x.ExecutionTime)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrences.Select(x => x.ToCronTickerOccurrence<TCronTicker>()).ToArray();
+            return occurrences.Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>()).ToArray();
         }
 
         public async Task<byte[]> GetCronTickerRequestViaOccurrence(Guid tickerId,
@@ -899,8 +901,8 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
 
             var earliestTime = await query
                 .Where(x => x.CronTickerId == id && tickerStatuses.Contains(x.Status))
-                .OrderBy(x => x.OccurrenceTime)
-                .Select(x => x.OccurrenceTime)
+                .OrderBy(x => x.ExecutionTime)
+                .Select(x => x.ExecutionTime)
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -913,7 +915,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
         {
             var occurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
 
-            var entities = occurrences.Select(x => x.ToCronTickerOccurrenceEntity()).ToList();
+            var entities = occurrences.Select(x => x.ToCronTickerOccurrenceEntity<TCronTicker, CronTickerOccurrence<TCronTicker>>()).ToList();
             await occurrenceContext.AddRangeAsync(entities, cancellationToken);
 
             await SaveAndDetachAsync<CronTickerOccurrenceEntity<CronTickerEntity>>(cancellationToken)
@@ -926,7 +928,7 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
             IEnumerable<CronTickerOccurrence<TCronTicker>> occurrences,
             Action<TickerProviderOptions> options = null, CancellationToken cancellationToken = default)
         {
-            var entities = occurrences.Select(x => x.ToCronTickerOccurrenceEntity());
+            var entities = occurrences.Select(x => x.ToCronTickerOccurrenceEntity<TCronTicker, CronTickerOccurrence<TCronTicker>>());
 
             UpsertRange(entities, x => x.Id);
 
@@ -938,12 +940,164 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
             IEnumerable<CronTickerOccurrence<TCronTicker>> occurrences,
             Action<TickerProviderOptions> options = null, CancellationToken cancellationToken = default)
         {
-            var entities = occurrences.Select(x => x.ToCronTickerOccurrenceEntity());
+            var entities = occurrences.Select(x => x.ToCronTickerOccurrenceEntity<TCronTicker, CronTickerOccurrence<TCronTicker>>());
 
             DeleteRange(entities, x => x.Id);
 
             await SaveAndDetachAsync<CronTickerOccurrenceEntity<CronTickerEntity>>(cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronTickerOccurrencesByCronTickerIds(
+            Guid[] ids,
+            int? takeLimit,
+            Action<TickerProviderOptions> options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var optionsValue = options.InvokeProviderOptions();
+            var now = _clock.UtcNow;
+
+            var cronTickerOccurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
+
+            var query = optionsValue.Tracking
+                ? cronTickerOccurrenceContext
+                : cronTickerOccurrenceContext.AsNoTracking();
+
+            query = query
+                .Where(x => ids.Contains(x.CronTickerId))
+                .Where(x => x.ExecutionTime >= now)
+                .Where(x => x.Status != TickerStatus.Done && x.Status != TickerStatus.DueDone &&
+                           x.Status != TickerStatus.Cancelled && x.Status != TickerStatus.Failed)
+                .OrderBy(x => x.ExecutionTime);
+
+            var cronTickerOccurrences = takeLimit.HasValue
+                ? await query.Take(takeLimit.Value).ToListAsync(cancellationToken).ConfigureAwait(false)
+                : await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+            return cronTickerOccurrences
+                .Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>())
+                .ToArray();
+        }
+
+        public async Task<CronTickerOccurrence<TCronTicker>[]> GetNextCronTickerOccurrences(
+            DateTime nextOccurrence,
+            string lockHolder,
+            Guid[] cronTickerIds,
+            Action<TickerProviderOptions> options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var cronTickerOccurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
+
+            try
+            {
+                // Cosmos DB: Optimistic locking without transactions
+                var availableOccurrences = await cronTickerOccurrenceContext
+                    .Where(x =>
+                        cronTickerIds.Contains(x.CronTickerId) &&
+                        ((x.LockHolder == null && x.Status == TickerStatus.Idle) ||
+                         (x.LockHolder == lockHolder && x.Status == TickerStatus.Queued)) &&
+                        x.ExecutionTime == nextOccurrence)
+                    .OrderBy(x => x.ExecutionTime)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!availableOccurrences.Any())
+                    return Array.Empty<CronTickerOccurrence<TCronTicker>>();
+
+                var lockTime = _clock.UtcNow;
+                var successfulOccurrences = new List<CronTickerOccurrenceEntity<CronTickerEntity>>();
+
+                foreach (var occurrence in availableOccurrences)
+                {
+                    // Lock idle occurrences or steal queued ones from other nodes, but never re-lock own queued ones
+                    if ((occurrence.LockHolder == null && occurrence.Status == TickerStatus.Idle) ||
+                        (occurrence.LockHolder != lockHolder && occurrence.Status == TickerStatus.Queued))
+                    {
+                        occurrence.Status = TickerStatus.Queued;
+                        occurrence.LockHolder = lockHolder;
+                        occurrence.LockedAt = lockTime;
+                        successfulOccurrences.Add(occurrence);
+                    }
+                }
+
+                if (successfulOccurrences.Any())
+                {
+                    await DbContext.SaveChangesAsync(cancellationToken);
+                    var result = successfulOccurrences
+                        .Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>())
+                        .ToArray();
+                    DetachAll<CronTickerOccurrenceEntity<CronTickerEntity>>();
+                    return result;
+                }
+
+                return Array.Empty<CronTickerOccurrence<TCronTicker>>();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                DetachAll<CronTickerOccurrenceEntity<CronTickerEntity>>();
+                return Array.Empty<CronTickerOccurrence<TCronTicker>>();
+            }
+        }
+
+        public async Task<CronTickerOccurrence<TCronTicker>[]> GetExistingCronTickerOccurrences(
+            Guid[] cronTickerIds,
+            Action<TickerProviderOptions> options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var optionsValue = options.InvokeProviderOptions();
+            var cronTickerOccurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
+
+            var occurrences = await cronTickerOccurrenceContext
+                .Where(x => cronTickerIds.Contains(x.CronTickerId) &&
+                            x.Status != TickerStatus.Done &&
+                            x.Status != TickerStatus.DueDone &&
+                            x.Status != TickerStatus.Failed &&
+                            x.Status != TickerStatus.Cancelled)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return occurrences
+                .Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>())
+                .ToArray();
+        }
+
+        public async Task<CronTickerOccurrence<TCronTicker>[]> GetQueuedNextCronOccurrences(
+            Guid tickerId,
+            Action<TickerProviderOptions> options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var optionsValue = options.InvokeProviderOptions();
+            var cronTickerOccurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
+
+            var nextCronOccurrences = await cronTickerOccurrenceContext
+                .Where(x => x.CronTickerId == tickerId)
+                .Where(x => x.Status == TickerStatus.Queued)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return nextCronOccurrences
+                .Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>())
+                .ToArray();
+        }
+
+        public async Task<CronTickerOccurrence<TCronTicker>[]> GetCronOccurrencesByCronTickerIdAndStatusFlag(
+            Guid tickerId,
+            TickerStatus[] tickerStatuses,
+            Action<TickerProviderOptions> options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var optionsValue = options.InvokeProviderOptions();
+            var cronTickerOccurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
+
+            var nextCronOccurrences = await cronTickerOccurrenceContext
+                .Where(x => x.CronTickerId == tickerId)
+                .Where(x => tickerStatuses.Contains(x.Status))
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return nextCronOccurrences
+                .Select(x => x.ToCronTickerOccurrence<CronTickerOccurrence<TCronTicker>, TCronTicker>())
+                .ToArray();
         }
 
         #endregion

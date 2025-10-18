@@ -59,26 +59,42 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        if: steps.check.outputs.should_publish == 'true'
-        run: dotnet restore src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj
-
-      - name: Build CosmosDb provider
+      - name: Build dependencies in correct order
         if: steps.check.outputs.should_publish == 'true'
         run: |
-          dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
-            --configuration Release \
-            --no-restore \
-            /p:Version=${{ steps.get-version.outputs.version }}
+          VERSION="${{ steps.get-version.outputs.version }}"
 
-      - name: Pack CosmosDb provider
-        if: steps.check.outputs.should_publish == 'true'
-        run: |
+          # Step 0: Create PackageVersion.props for consistent builds
+          cat > PackageVersion.props <<EOF
+          <Project>
+            <PropertyGroup>
+              <PackageVersion>$VERSION</PackageVersion>
+            </PropertyGroup>
+          </Project>
+          EOF
+
+          # Step 1: Build and pack TickerQ.Utilities first
+          dotnet build src/TickerQ.Utilities/TickerQ.Utilities.csproj --configuration Release
+          dotnet pack src/TickerQ.Utilities/TickerQ.Utilities.csproj --configuration Release --output ./temp-nupkgs
+
+          # Step 2: Add local NuGet source
+          dotnet nuget add source "$(pwd)/temp-nupkgs" --name TempLocalNupkgs
+
+          # Step 3: Build TickerQ.SourceGenerator
+          dotnet build src/TickerQ.SourceGenerator/TickerQ.SourceGenerator.csproj --configuration Release
+
+          # Step 4: Build dependencies
+          dotnet build src/TickerQ/TickerQ.csproj --configuration Release -p:GeneratePackageOnBuild=false
+          dotnet build src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj --configuration Release -p:GeneratePackageOnBuild=false
+
+          # Step 5: Pack CosmosDb provider
           dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
             --configuration Release \
-            --no-build \
             --output ./nupkgs \
-            /p:Version=${{ steps.get-version.outputs.version }}
+            -p:Version=$VERSION
+
+          # Cleanup
+          rm -f PackageVersion.props
 
       - name: Show package info
         if: steps.check.outputs.should_publish == 'true'

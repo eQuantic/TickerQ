@@ -13,6 +13,7 @@
         <Description>Azure Cosmos DB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
         <PackageTags>tickerq;cosmosdb;azure;efcore;background-jobs;scheduler;equantic</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>Icon_details.png</PackageIcon>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/equantic/TickerQ</RepositoryUrl>
         <PackageProjectUrl>https://github.com/equantic/TickerQ</PackageProjectUrl>
@@ -20,6 +21,7 @@
 
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="" />
+        <None Include="Icon_details.png" Pack="true" PackagePath="" />
     </ItemGroup>
 
     <!-- DEVELOPMENT: Use ProjectReference to access internals via InternalsVisibleTo -->

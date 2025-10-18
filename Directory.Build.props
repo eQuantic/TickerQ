@@ -1,5 +1,7 @@
 ﻿<Project>
-    
+
+    <Import Project="PackageVersion.props" Condition="Exists('PackageVersion.props')" />
+
     <PropertyGroup>
         <Authors>Albert Kunushevci</Authors>
         <Company>Arcenox LLC</Company>
