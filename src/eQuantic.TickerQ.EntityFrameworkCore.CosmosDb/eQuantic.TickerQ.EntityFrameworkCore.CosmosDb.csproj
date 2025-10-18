@@ -7,7 +7,7 @@
 
         <!-- Package Information -->
         <PackageId>eQuantic.TickerQ.EntityFrameworkCore.CosmosDb</PackageId>
-        <Version>1.0.0</Version>
+        <Version>1.0.1</Version>
         <Authors>eQuantic</Authors>
         <Company>eQuantic</Company>
         <Description>Azure Cosmos DB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
@@ -17,6 +17,9 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/equantic/TickerQ</RepositoryUrl>
         <PackageProjectUrl>https://github.com/equantic/TickerQ</PackageProjectUrl>
+
+        <!-- Default TickerQ version (can be overridden via -p:TickerQVersion=X.Y.Z) -->
+        <TickerQVersion Condition="'$(TickerQVersion)' == ''">2.5.3</TickerQVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,23 +28,20 @@
     </ItemGroup>
 
     <!-- DEVELOPMENT: Use ProjectReference to access internals via InternalsVisibleTo -->
+    <!-- PrivateAssets="All" prevents these from being included as package dependencies -->
     <ItemGroup>
-        <ProjectReference Include="..\TickerQ\TickerQ.csproj" />
-        <ProjectReference Include="..\TickerQ.Utilities\TickerQ.Utilities.csproj" />
-        <ProjectReference Include="..\TickerQ.EntityFrameworkCore\TickerQ.EntityFrameworkCore.csproj" />
+        <ProjectReference Include="..\TickerQ\TickerQ.csproj" PrivateAssets="All" />
+        <ProjectReference Include="..\TickerQ.Utilities\TickerQ.Utilities.csproj" PrivateAssets="All" />
+        <ProjectReference Include="..\TickerQ.EntityFrameworkCore\TickerQ.EntityFrameworkCore.csproj" PrivateAssets="All" />
     </ItemGroup>
 
-    <ItemGroup>
+    <!-- PACKAGING: Explicit PackageReference entries for correct dependency versions in .nupkg -->
+    <!-- These are only used during packaging to declare dependencies, not for build (ProjectReference is used for build) -->
+    <ItemGroup Condition="'$(TargetFramework)' != ''">
+        <PackageReference Include="TickerQ" Version="$(TickerQVersion)" />
+        <PackageReference Include="TickerQ.Utilities" Version="$(TickerQVersion)" />
+        <PackageReference Include="TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="8.0.0" />
     </ItemGroup>
-
-    <!-- BEFORE PUBLISHING: Replace ProjectReferences above with these PackageReferences:
-    <ItemGroup>
-        <PackageReference Include="TickerQ" Version="2.5.3" />
-        <PackageReference Include="TickerQ.Utilities" Version="2.5.3" />
-        <PackageReference Include="TickerQ.EntityFrameworkCore" Version="2.5.3" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="8.0.0" />
-    </ItemGroup>
-    -->
 
 </Project>

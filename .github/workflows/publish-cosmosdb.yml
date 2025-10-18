@@ -95,18 +95,21 @@ jobs:
           dotnet build src/TickerQ/TickerQ.csproj --configuration Release -p:GeneratePackageOnBuild=false
           dotnet build src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj --configuration Release -p:GeneratePackageOnBuild=false
 
-          # Step 5: Build and pack CosmosDb provider with CosmosDb version (1.0.0)
-          # Build uses PackageVersion from .props (2.5.3) for dependencies
+          # Step 5: Build CosmosDb provider with ProjectReferences (for internals access)
+          echo "📦 Building CosmosDb..."
           dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
             --configuration Release \
-            -p:GeneratePackageOnBuild=false
+            -p:GeneratePackageOnBuild=false \
+            -p:TickerQVersion=$TICKERQ_VERSION
 
-          # Pack overrides PackageVersion to use CosmosDb version (1.0.0)
+          # Pack with correct TickerQ dependency version
+          echo "📦 Packing CosmosDb v$COSMOSDB_VERSION with TickerQ v$TICKERQ_VERSION dependencies..."
           dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
             --configuration Release \
             --no-build \
             --output ./nupkgs \
-            -p:PackageVersion=$COSMOSDB_VERSION
+            -p:PackageVersion=$COSMOSDB_VERSION \
+            -p:TickerQVersion=$TICKERQ_VERSION
 
           # Cleanup
           rm -f PackageVersion.props
