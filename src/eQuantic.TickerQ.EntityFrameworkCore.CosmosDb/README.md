@@ -1,5 +1,11 @@
 # eQuantic.TickerQ.EntityFrameworkCore.CosmosDb
 
+[![NuGet](https://img.shields.io/nuget/v/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.svg)](https://www.nuget.org/packages/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb)
+[![NuGet](https://img.shields.io/nuget/dt/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.svg)](https://www.nuget.org/packages/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb)
+[![Publish](https://github.com/equantic/TickerQ/actions/workflows/publish-cosmosdb.yml/badge.svg)](https://github.com/equantic/TickerQ/actions/workflows/publish-cosmosdb.yml)
+[![.NET 8+](https://img.shields.io/badge/.NET-8.0+-512BD4?logo=dotnet)](https://dotnet.microsoft.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > **Note**: This is a community-maintained provider for TickerQ.
 > This package is maintained by eQuantic and is not an official TickerQ package.
 >
