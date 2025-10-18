@@ -18,6 +18,24 @@ Azure Cosmos DB provider for TickerQ - A lightweight, developer-friendly library
 
 This provider enables TickerQ to use Azure Cosmos DB as the persistence layer for storing and managing scheduled jobs.
 
+### ✨ Features
+
+- 🚀 **Multi-framework Support**: .NET 8.0 and .NET 9.0
+- 🌐 **Azure Cosmos DB**: Globally distributed, multi-model database service
+- 📦 **EF Core Cosmos Provider**: Uses official Microsoft.EntityFrameworkCore.Cosmos
+- 🔒 **Optimistic Concurrency**: ETags for distributed locking
+- 🎯 **Full TickerQ Compatibility**: Works seamlessly with TickerQ 2.5.3+
+- ⚡ **High Performance**: Low-latency reads and writes with automatic indexing
+- 🌍 **Global Distribution**: Multi-region replication for high availability
+- 📈 **Elastic Scaling**: Automatically scales throughput and storage
+
+### 📋 Requirements
+
+| .NET Version | EF Core Cosmos Version | TickerQ Version |
+|--------------|------------------------|-----------------|
+| .NET 8.0     | 8.0.21                | 2.5.3+          |
+| .NET 9.0     | 9.0.10                | 2.5.3+          |
+
 ## Installation
 
 ### From NuGet (Recommended)
@@ -112,6 +130,23 @@ The provider creates the following containers in your Cosmos DB database:
 
 All containers use the document `id` as the partition key for optimal distribution.
 
+### When to Use Cosmos DB vs SQL Server
+
+**✅ Use Cosmos DB when you need:**
+- Global distribution and multi-region deployments
+- Low-latency access from anywhere in the world
+- Automatic horizontal scaling
+- 99.999% availability SLA
+- Flexible schema and JSON document storage
+- Serverless or consumption-based pricing
+
+**✅ Use SQL Server when you need:**
+- Complex relational queries with JOINs and GROUP BY
+- ACID transactions across multiple tables
+- Lower cost for smaller workloads
+- On-premises or existing SQL infrastructure
+- Strong consistency guarantees
+
 ### Differences from Relational Provider
 
 Cosmos DB is a NoSQL database with different characteristics than SQL databases:
@@ -153,6 +188,15 @@ eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/
 └── README.md
 ```
 
+## Framework Support
+
+This package uses multi-targeting to support both .NET 8.0 and .NET 9.0 in a single NuGet package:
+
+- **net8.0**: Uses Microsoft.EntityFrameworkCore.Cosmos 8.0.21
+- **net9.0**: Uses Microsoft.EntityFrameworkCore.Cosmos 9.0.10
+
+When you install this package, NuGet automatically selects the correct version based on your project's target framework.
+
 ## Compatibility with Upstream
 
 This package depends on a fork that maintains full compatibility with the upstream TickerQ repository. The only changes to the original code are:
@@ -172,6 +216,19 @@ Issues and pull requests are welcome at https://github.com/equantic/TickerQ
 
 If you have suggestions for the TickerQ core library, please contribute directly to the upstream project: https://github.com/arcenox/TickerQ
 
+## Versioning
+
+This package follows [Semantic Versioning](https://semver.org/):
+- **Major version**: Breaking changes to public API
+- **Minor version**: New features, backward compatible
+- **Patch version**: Bug fixes, backward compatible
+
+### Version History
+
+- **1.0.2**: Added .NET 9.0 support with EF Core Cosmos 9.0.10
+- **1.0.1**: Fixed NuGet package dependency versions
+- **1.0.0**: Initial release with .NET 8.0 support
+
 ## License
 
 This provider follows the same MIT license as the main TickerQ library.
@@ -179,7 +236,10 @@ This provider follows the same MIT license as the main TickerQ library.
 ## Support
 
 For issues specific to the Cosmos DB provider:
-- GitHub Issues: https://github.com/equantic/TickerQ/issues
+- 🐛 **GitHub Issues**: https://github.com/equantic/TickerQ/issues
+- 📦 **NuGet Package**: https://www.nuget.org/packages/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb
 
 For general TickerQ questions:
-- Original repository: https://github.com/arcenox/TickerQ
+- 📚 **Official Docs**: https://tickerq.net
+- 💬 **Discord Community**: https://discord.gg/ZJemWvp9MK
+- 🔧 **Original Repository**: https://github.com/arcenox/TickerQ
