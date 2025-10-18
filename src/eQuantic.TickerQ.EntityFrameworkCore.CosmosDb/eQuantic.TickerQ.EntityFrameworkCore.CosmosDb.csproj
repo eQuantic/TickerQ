@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+
+        <!-- Package Information -->
+        <PackageId>eQuantic.TickerQ.EntityFrameworkCore.CosmosDb</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>eQuantic</Authors>
+        <Company>eQuantic</Company>
+        <Description>Azure Cosmos DB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
+        <PackageTags>tickerq;cosmosdb;azure;efcore;background-jobs;scheduler;equantic</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/equantic/TickerQ</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/equantic/TickerQ</PackageProjectUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+
+    <!-- DEVELOPMENT: Use ProjectReference to access internals via InternalsVisibleTo -->
+    <ItemGroup>
+        <ProjectReference Include="..\TickerQ\TickerQ.csproj" />
+        <ProjectReference Include="..\TickerQ.Utilities\TickerQ.Utilities.csproj" />
+        <ProjectReference Include="..\TickerQ.EntityFrameworkCore\TickerQ.EntityFrameworkCore.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="8.0.0" />
+    </ItemGroup>
+
+    <!-- BEFORE PUBLISHING: Replace ProjectReferences above with these PackageReferences:
+    <ItemGroup>
+        <PackageReference Include="TickerQ" Version="2.5.3" />
+        <PackageReference Include="TickerQ.Utilities" Version="2.5.3" />
+        <PackageReference Include="TickerQ.EntityFrameworkCore" Version="2.5.3" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="8.0.0" />
+    </ItemGroup>
+    -->
+
+</Project>

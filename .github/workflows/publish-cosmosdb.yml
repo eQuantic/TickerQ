@@ -1,0 +1,128 @@
+name: Publish eQuantic CosmosDb Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g., 1.0.0)'
+        required: true
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/**'
+      - '.github/workflows/publish-cosmosdb.yml'
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      should_publish: ${{ steps.check.outputs.should_publish }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract version from .csproj
+            VERSION=$(grep -oP '<Version>\K[^<]+' src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Package version: $VERSION"
+
+      - name: Check if package already exists on NuGet
+        id: check
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          PACKAGE_ID="equantic.tickerq.entityframeworkcore.cosmosdb"
+          URL="https://api.nuget.org/v3-flatcontainer/$PACKAGE_ID/$VERSION/$PACKAGE_ID.$VERSION.nupkg"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Package $PACKAGE_ID $VERSION already exists on NuGet"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Package $PACKAGE_ID $VERSION does NOT exist on NuGet"
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup .NET 8
+        if: steps.check.outputs.should_publish == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        if: steps.check.outputs.should_publish == 'true'
+        run: dotnet restore src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj
+
+      - name: Build CosmosDb provider
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
+            --configuration Release \
+            --no-restore \
+            /p:Version=${{ steps.get-version.outputs.version }}
+
+      - name: Pack CosmosDb provider
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./nupkgs \
+            /p:Version=${{ steps.get-version.outputs.version }}
+
+      - name: Show package info
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          echo "📦 Package created:"
+          for pkg in ./nupkgs/*.nupkg; do
+            size=$(du -h "$pkg" | cut -f1)
+            echo " - $(basename "$pkg"): $size"
+          done
+
+      - name: Upload package artifact
+        if: steps.check.outputs.should_publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosmosdb-package
+          path: ./nupkgs/*.nupkg
+          retention-days: 5
+
+  publish:
+    needs: check-and-build
+    if: needs.check-and-build.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-publish
+
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cosmosdb-package
+          path: ./nupkgs
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish to NuGet.org
+        run: |
+          for pkg in ./nupkgs/*.nupkg; do
+            echo "📤 Publishing $(basename "$pkg")..."
+            dotnet nuget push "$pkg" \
+              --source https://api.nuget.org/v3/index.json \
+              --api-key ${{ secrets.NUGET_KEY }} \
+              --skip-duplicate
+          done
+          echo "✅ Package published successfully!"
