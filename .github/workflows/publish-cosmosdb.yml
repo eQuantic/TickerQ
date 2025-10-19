@@ -124,6 +124,13 @@ jobs:
             -p:PackageId=eQuantic.TickerQ \
             -p:PackageVersion=$TICKERQ_VERSION
 
+          # Fix dependencies in eQuantic.TickerQ to use eQuantic.TickerQ.Utilities
+          echo "🔧 Fixing dependencies in eQuantic.TickerQ package..."
+          unzip -q ./temp-nupkgs/eQuantic.TickerQ.$TICKERQ_VERSION.nupkg -d ./temp-extract
+          sed -i 's/<dependency id="TickerQ\.Utilities"/<dependency id="eQuantic.TickerQ.Utilities"/g' ./temp-extract/eQuantic.TickerQ.nuspec
+          cd ./temp-extract && zip -q -r ../temp-nupkgs/eQuantic.TickerQ.$TICKERQ_VERSION.nupkg * && cd ..
+          rm -rf ./temp-extract
+
           echo "📦 Packing eQuantic.TickerQ.EntityFrameworkCore v$TICKERQ_VERSION to temp-nupkgs..."
           dotnet pack src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj \
             --configuration Release \
@@ -131,6 +138,14 @@ jobs:
             --output ./temp-nupkgs \
             -p:PackageId=eQuantic.TickerQ.EntityFrameworkCore \
             -p:PackageVersion=$TICKERQ_VERSION
+
+          # Fix dependencies in eQuantic.TickerQ.EntityFrameworkCore
+          echo "🔧 Fixing dependencies in eQuantic.TickerQ.EntityFrameworkCore package..."
+          unzip -q ./temp-nupkgs/eQuantic.TickerQ.EntityFrameworkCore.$TICKERQ_VERSION.nupkg -d ./temp-extract
+          sed -i 's/<dependency id="TickerQ\.Utilities"/<dependency id="eQuantic.TickerQ.Utilities"/g' ./temp-extract/eQuantic.TickerQ.EntityFrameworkCore.nuspec
+          sed -i 's/<dependency id="TickerQ"/<dependency id="eQuantic.TickerQ"/g' ./temp-extract/eQuantic.TickerQ.EntityFrameworkCore.nuspec
+          cd ./temp-extract && zip -q -r ../temp-nupkgs/eQuantic.TickerQ.EntityFrameworkCore.$TICKERQ_VERSION.nupkg * && cd ..
+          rm -rf ./temp-extract
 
           # Step 5: Build CosmosDb provider with ProjectReferences (for internals access)
           echo "📦 Building CosmosDb..."
