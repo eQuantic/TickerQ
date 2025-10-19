@@ -31,10 +31,12 @@ This provider enables TickerQ to use Azure Cosmos DB as the persistence layer fo
 
 ### 📋 Requirements
 
-| .NET Version | EF Core Cosmos Version | TickerQ Version |
-|--------------|------------------------|-----------------|
-| .NET 8.0     | 8.0.21                | 2.5.3+          |
-| .NET 9.0     | 9.0.10                | 2.5.3+          |
+| .NET Version | EF Core Cosmos Version | eQuantic.TickerQ Version |
+|--------------|------------------------|--------------------------|
+| .NET 8.0     | 8.0.21                | 2.5.3+                   |
+| .NET 9.0     | 9.0.10                | 2.5.3+                   |
+
+> **Important**: This package depends on `eQuantic.TickerQ.*` packages (not the original `TickerQ.*`). These are eQuantic-maintained forks with `InternalsVisibleTo` configured to allow this provider to access internal APIs.
 
 ## Installation
 
@@ -109,16 +111,28 @@ app.Run();
 
 ## Technical Details
 
-### Why This Package Uses a Fork
+### Package Dependencies
 
-The original TickerQ library uses internal members (`ExternalProviderConfigServiceAction` and `ExternalProviderConfigApplicationAction`) in `TickerOptionsBuilder` to allow external providers to configure services. These internal members are necessary for implementing persistence providers but are not publicly accessible.
+This package depends on **eQuantic-maintained forks** of TickerQ libraries published under the `eQuantic.*` namespace:
 
-Our fork (https://github.com/equantic/TickerQ) adds `InternalsVisibleTo` attributes to expose these APIs to this package:
-- `TickerQ` → `eQuantic.TickerQ.EntityFrameworkCore.CosmosDb`
-- `TickerQ.Utilities` → `eQuantic.TickerQ.EntityFrameworkCore.CosmosDb`
-- `TickerQ.EntityFrameworkCore` → `eQuantic.TickerQ.EntityFrameworkCore.CosmosDb`
+| Package | Purpose |
+|---------|---------|
+| `eQuantic.TickerQ` | Core TickerQ library with InternalsVisibleTo |
+| `eQuantic.TickerQ.Utilities` | TickerQ utilities with InternalsVisibleTo |
+| `eQuantic.TickerQ.EntityFrameworkCore` | EF Core provider base with InternalsVisibleTo |
 
-This allows the CosmosDb provider to access the required internal APIs without exposing them publicly in the main library.
+These packages are **functionally identical** to the original `TickerQ.*` packages but include `InternalsVisibleTo` attributes that allow this Cosmos DB provider to access internal APIs required for implementation.
+
+### Why Forked Packages Are Needed
+
+The original TickerQ library uses internal members (`ExternalProviderConfigServiceAction`, `ExternalProviderConfigApplicationAction`, and `BasePersistenceProvider`) to allow external providers to configure services and implement persistence. These internal members are necessary for implementing persistence providers but are not publicly accessible.
+
+Our fork (https://github.com/equantic/TickerQ) adds `InternalsVisibleTo` attributes to expose these APIs:
+```xml
+<InternalsVisibleTo Include="eQuantic.TickerQ.EntityFrameworkCore.CosmosDb" />
+```
+
+This allows the CosmosDb provider to access the required internal APIs without exposing them publicly in the main library. The forked packages are published as `eQuantic.TickerQ.*` to avoid conflicts with the original packages.
 
 ### Cosmos DB Collections
 
@@ -225,9 +239,11 @@ This package follows [Semantic Versioning](https://semver.org/):
 
 ### Version History
 
+- **1.0.4**: Updated dependencies to use eQuantic.TickerQ.* packages (fixes InternalsVisibleTo access issues)
+- **1.0.3**: Initial transition to eQuantic.TickerQ.* dependencies
 - **1.0.2**: Added .NET 9.0 support with EF Core Cosmos 9.0.10
-- **1.0.1**: Fixed NuGet package dependency versions
-- **1.0.0**: Initial release with .NET 8.0 support
+- **1.0.1**: Fixed NuGet package dependency versions (changed from TickerQ.* 1.0.0 to 2.5.3)
+- **1.0.0**: Initial release with .NET 8.0 support (⚠️ had InternalsVisibleTo access issues)
 
 ## License
 

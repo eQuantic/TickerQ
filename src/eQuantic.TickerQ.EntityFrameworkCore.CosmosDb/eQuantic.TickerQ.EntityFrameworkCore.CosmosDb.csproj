@@ -7,7 +7,8 @@
 
         <!-- Package Information -->
         <PackageId>eQuantic.TickerQ.EntityFrameworkCore.CosmosDb</PackageId>
-        <Version>1.0.3</Version>
+        <Version>1.0.4</Version>
+        <PackageVersion>1.0.4</PackageVersion>
         <Authors>eQuantic</Authors>
         <Company>eQuantic</Company>
         <Description>Azure Cosmos DB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
@@ -35,20 +36,22 @@
         <ProjectReference Include="..\TickerQ.EntityFrameworkCore\TickerQ.EntityFrameworkCore.csproj" PrivateAssets="All" />
     </ItemGroup>
 
-    <!-- PACKAGING: Explicit PackageReference entries for correct dependency versions in .nupkg -->
-    <!-- These are only used during packaging to declare dependencies, not for build (ProjectReference is used for build) -->
+    <!-- EF Core Cosmos PackageReferences (actual runtime dependencies) -->
     <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-        <PackageReference Include="TickerQ" Version="$(TickerQVersion)" />
-        <PackageReference Include="TickerQ.Utilities" Version="$(TickerQVersion)" />
-        <PackageReference Include="TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="8.0.21" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-        <PackageReference Include="TickerQ" Version="$(TickerQVersion)" />
-        <PackageReference Include="TickerQ.Utilities" Version="$(TickerQVersion)" />
-        <PackageReference Include="TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="9.0.10" />
+    </ItemGroup>
+
+    <!-- eQuantic.TickerQ.* PackageReferences (for package dependencies in .nupkg) -->
+    <!-- These are declared for pack only - during build we use ProjectReferences above -->
+    <!-- Condition prevents these from being used during local development build -->
+    <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+        <PackageReference Include="eQuantic.TickerQ" Version="$(TickerQVersion)" />
+        <PackageReference Include="eQuantic.TickerQ.Utilities" Version="$(TickerQVersion)" />
+        <PackageReference Include="eQuantic.TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
     </ItemGroup>
 
 </Project>

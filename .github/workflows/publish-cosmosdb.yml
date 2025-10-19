@@ -1,12 +1,17 @@
-name: Publish eQuantic CosmosDb Package
+name: Publish eQuantic TickerQ Packages
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Package version (e.g., 1.0.0)'
+      cosmosdb_version:
+        description: 'CosmosDb package version (e.g., 1.0.4)'
         required: true
         type: string
+      publish_base_packages:
+        description: 'Publish base packages (TickerQ, Utilities, EFCore)?'
+        required: false
+        type: boolean
+        default: true
   push:
     branches:
       - main
@@ -35,12 +40,17 @@ jobs:
 
           # Get CosmosDb version from .csproj or workflow input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            COSMOSDB_VERSION="${{ github.event.inputs.version }}"
+            COSMOSDB_VERSION="${{ github.event.inputs.cosmosdb_version }}"
           else
             COSMOSDB_VERSION=$(grep -oP '<Version>\K[^<]+' src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj)
           fi
           echo "version=$COSMOSDB_VERSION" >> $GITHUB_OUTPUT
           echo "📦 CosmosDb package version: $COSMOSDB_VERSION"
+
+          # Check if should publish base packages
+          PUBLISH_BASE="${{ github.event.inputs.publish_base_packages }}"
+          echo "publish_base=$PUBLISH_BASE" >> $GITHUB_OUTPUT
+          echo "📦 Publish base packages: $PUBLISH_BASE"
 
       - name: Check if package already exists on NuGet
         id: check
@@ -97,6 +107,31 @@ jobs:
           dotnet build src/TickerQ/TickerQ.csproj --configuration Release -p:GeneratePackageOnBuild=false
           dotnet build src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj --configuration Release -p:GeneratePackageOnBuild=false
 
+          # Step 4.5: Pack base eQuantic packages locally (for CosmosDb restore)
+          echo "📦 Packing eQuantic.TickerQ.Utilities v$TICKERQ_VERSION to temp-nupkgs..."
+          dotnet pack src/TickerQ.Utilities/TickerQ.Utilities.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./temp-nupkgs \
+            -p:PackageId=eQuantic.TickerQ.Utilities \
+            -p:PackageVersion=$TICKERQ_VERSION
+
+          echo "📦 Packing eQuantic.TickerQ v$TICKERQ_VERSION to temp-nupkgs..."
+          dotnet pack src/TickerQ/TickerQ.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./temp-nupkgs \
+            -p:PackageId=eQuantic.TickerQ \
+            -p:PackageVersion=$TICKERQ_VERSION
+
+          echo "📦 Packing eQuantic.TickerQ.EntityFrameworkCore v$TICKERQ_VERSION to temp-nupkgs..."
+          dotnet pack src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./temp-nupkgs \
+            -p:PackageId=eQuantic.TickerQ.EntityFrameworkCore \
+            -p:PackageVersion=$TICKERQ_VERSION
+
           # Step 5: Build CosmosDb provider with ProjectReferences (for internals access)
           echo "📦 Building CosmosDb..."
           dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
@@ -104,7 +139,7 @@ jobs:
             -p:GeneratePackageOnBuild=false \
             -p:TickerQVersion=$TICKERQ_VERSION
 
-          # Pack with correct TickerQ dependency version
+          # Step 6: Pack CosmosDb with correct TickerQ dependency version
           echo "📦 Packing CosmosDb v$COSMOSDB_VERSION with TickerQ v$TICKERQ_VERSION dependencies..."
           dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
             --configuration Release \
@@ -112,6 +147,15 @@ jobs:
             --output ./nupkgs \
             -p:PackageVersion=$COSMOSDB_VERSION \
             -p:TickerQVersion=$TICKERQ_VERSION
+
+          # Step 7: Copy base packages to nupkgs if they should be published
+          if [ "${{ github.event.inputs.publish_base_packages }}" = "true" ]; then
+            echo "📦 Copying base eQuantic packages to ./nupkgs for publishing..."
+            cp ./temp-nupkgs/eQuantic.TickerQ.$TICKERQ_VERSION.nupkg ./nupkgs/
+            cp ./temp-nupkgs/eQuantic.TickerQ.Utilities.$TICKERQ_VERSION.nupkg ./nupkgs/
+            cp ./temp-nupkgs/eQuantic.TickerQ.EntityFrameworkCore.$TICKERQ_VERSION.nupkg ./nupkgs/
+            echo "✅ Base packages copied to ./nupkgs"
+          fi
 
           # Cleanup
           rm -f PackageVersion.props
