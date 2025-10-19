@@ -7,6 +7,7 @@ using TickerQ.Utilities;
 using TickerQ.Utilities.Interfaces;
 using TickerQ.Utilities.Interfaces.Managers;
 using TickerQ.Utilities.Enums;
+using TickerQ.Utilities.Models.Ticker;
 
 namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.DependencyInjection
 {
@@ -118,8 +119,12 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.DependencyInjection
                 if (!options.IgnoreSeedMemoryCronTickersInternal)
                     internalTickerManager.SyncWithDbMemoryCronTickers(functionsToSeed).GetAwaiter().GetResult();
 
-                options.TimeSeeder?.Invoke(internalTickerManager).GetAwaiter().GetResult();
-                options.CronSeeder?.Invoke(internalTickerManager).GetAwaiter().GetResult();
+                // Get the public managers for seeders
+                var timeTickerManager = scope.ServiceProvider.GetRequiredService<ITimeTickerManager<TimeTicker>>();
+                var cronTickerManager = scope.ServiceProvider.GetRequiredService<ICronTickerManager<CronTicker>>();
+
+                options.TimeSeeder?.Invoke(timeTickerManager).GetAwaiter().GetResult();
+                options.CronSeeder?.Invoke(cronTickerManager).GetAwaiter().GetResult();
 
                 // Cancel missed tickers if configured
                 var termination = options.CancelMissedTickersOnReset

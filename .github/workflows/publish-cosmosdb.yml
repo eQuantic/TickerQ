@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       cosmosdb_version:
-        description: 'CosmosDb package version (e.g., 1.0.4)'
+        description: 'CosmosDb package version (e.g., 1.0.7)'
         required: true
         type: string
       publish_base_packages:

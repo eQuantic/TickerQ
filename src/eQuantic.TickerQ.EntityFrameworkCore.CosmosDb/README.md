@@ -96,6 +96,118 @@ var app = builder.Build();
 app.Run();
 ```
 
+### Advanced Configuration
+
+The Cosmos DB provider supports the same advanced configuration options as the EF Core provider:
+
+#### Seed Initial Tickers
+
+```csharp
+builder.Services.AddTickerQ(options =>
+{
+    options.AddCosmosDbOperationalStore(
+        cosmosOptions =>
+        {
+            cosmosOptions.ConnectionString = "AccountEndpoint=https://...;AccountKey=...";
+            cosmosOptions.DatabaseName = "TickerQ";
+        },
+        optionsBuilder =>
+        {
+            // Seed initial tickers (time-based and cron-based)
+            optionsBuilder.UseTickerSeeder(
+                async timeTicker =>
+                {
+                    await timeTicker.AddAsync(new TimeTicker
+                    {
+                        Id = Guid.NewGuid(),
+                        Function = "CleanupLogs",
+                        ExecutionTime = DateTime.UtcNow.AddSeconds(5),
+                    });
+                },
+                async cronTicker =>
+                {
+                    await cronTicker.AddAsync(new CronTicker
+                    {
+                        Id = Guid.NewGuid(),
+                        Expression = "0 0 * * *", // every day at 00:00 UTC
+                        Function = "CleanupLogs"
+                    });
+                });
+        });
+});
+```
+
+#### Cancel Missed Tickers on Startup
+
+```csharp
+builder.Services.AddTickerQ(options =>
+{
+    options.AddCosmosDbOperationalStore(
+        cosmosOptions =>
+        {
+            cosmosOptions.ConnectionString = "AccountEndpoint=https://...;AccountKey=...";
+            cosmosOptions.DatabaseName = "TickerQ";
+        },
+        optionsBuilder =>
+        {
+            // Cancel any missed tickers tied to this node on application start
+            optionsBuilder.CancelMissedTickersOnAppStart();
+        });
+});
+```
+
+#### Ignore Memory Cron Tickers
+
+```csharp
+builder.Services.AddTickerQ(options =>
+{
+    options.AddCosmosDbOperationalStore(
+        cosmosOptions =>
+        {
+            cosmosOptions.ConnectionString = "AccountEndpoint=https://...;AccountKey=...";
+            cosmosOptions.DatabaseName = "TickerQ";
+        },
+        optionsBuilder =>
+        {
+            // Don't automatically seed memory-based cron tickers
+            optionsBuilder.IgnoreSeedMemoryCronTickers();
+        });
+});
+```
+
+#### Using Custom DbContext
+
+You can provide your own `DbContext` to customize Cosmos DB configuration:
+
+```csharp
+public class MyCustomCosmosContext : CosmosDbTickerContext
+{
+    public MyCustomCosmosContext(DbContextOptions options, CosmosDbOptions cosmosOptions)
+        : base(options, cosmosOptions)
+    {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Add your custom Cosmos DB configurations here
+        modelBuilder.Entity<TimeTickerEntity>()
+            .HasPartitionKey(e => e.Id);
+    }
+}
+
+// In Program.cs
+builder.Services.AddTickerQ(options =>
+{
+    options.AddCosmosDbOperationalStore<MyCustomCosmosContext>(cosmosOptions =>
+    {
+        cosmosOptions.ConnectionString = "AccountEndpoint=https://...;AccountKey=...";
+        cosmosOptions.DatabaseName = "TickerQ";
+    });
+});
+```
+
 ## Configuration Options
 
 | Property | Description | Default |
