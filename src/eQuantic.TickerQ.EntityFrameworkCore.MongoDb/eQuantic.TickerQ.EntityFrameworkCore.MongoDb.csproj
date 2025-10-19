@@ -7,8 +7,8 @@
 
         <!-- Package Information -->
         <PackageId>eQuantic.TickerQ.EntityFrameworkCore.MongoDb</PackageId>
-        <Version>1.0.0</Version>
-        <PackageVersion>1.0.0</PackageVersion>
+        <Version>1.0.1</Version>
+        <PackageVersion>1.0.1</PackageVersion>
         <Authors>eQuantic</Authors>
         <Company>eQuantic</Company>
         <Description>MongoDB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
@@ -20,7 +20,7 @@
         <PackageProjectUrl>https://github.com/equantic/TickerQ</PackageProjectUrl>
 
         <!-- Default TickerQ version (can be overridden via -p:TickerQVersion=X.Y.Z) -->
-        <TickerQVersion Condition="'$(TickerQVersion)' == ''">2.5.3.2</TickerQVersion>
+        <TickerQVersion Condition="'$(TickerQVersion)' == ''">2.5.3.3</TickerQVersion>
     </PropertyGroup>
 
     <ItemGroup>

@@ -128,6 +128,22 @@ jobs:
             8.0.x
             9.0.x
 
+      - name: Setup Node.js 20
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        if: steps.check.outputs.should_build == 'true'
+        run: npm install
+        working-directory: src/TickerQ.Dashboard/wwwroot
+
+      - name: Build frontend
+        if: steps.check.outputs.should_build == 'true'
+        run: npm run build
+        working-directory: src/TickerQ.Dashboard/wwwroot
+
       - name: Build dependencies in correct order
         if: steps.check.outputs.should_build == 'true'
         run: |
