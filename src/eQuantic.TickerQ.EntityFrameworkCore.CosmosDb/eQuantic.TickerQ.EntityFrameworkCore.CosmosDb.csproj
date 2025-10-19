@@ -7,8 +7,8 @@
 
         <!-- Package Information -->
         <PackageId>eQuantic.TickerQ.EntityFrameworkCore.CosmosDb</PackageId>
-        <Version>1.0.6</Version>
-        <PackageVersion>1.0.6</PackageVersion>
+        <Version>1.0.7</Version>
+        <PackageVersion>1.0.7</PackageVersion>
         <Authors>eQuantic</Authors>
         <Company>eQuantic</Company>
         <Description>Azure Cosmos DB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>

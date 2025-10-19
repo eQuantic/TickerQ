@@ -351,6 +351,9 @@ This package follows [Semantic Versioning](https://semver.org/):
 
 ### Version History
 
+- **1.0.7**: Fixed GetCronTickerRequestViaOccurrence to use 2-query approach instead of navigation property, maintains CronTickerEntity as independent container
+- **1.0.6**: Added feature parity with EF Core provider (UseTickerSeeder, CancelMissedTickersOnAppStart, custom DbContext support)
+- **1.0.5**: Updated dependencies to eQuantic.TickerQ.* v2.5.3.1 (correct dependency chain)
 - **1.0.4**: Updated dependencies to use eQuantic.TickerQ.* packages (fixes InternalsVisibleTo access issues)
 - **1.0.3**: Initial transition to eQuantic.TickerQ.* dependencies
 - **1.0.2**: Added .NET 9.0 support with EF Core Cosmos 9.0.10

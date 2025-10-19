@@ -875,17 +875,30 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Infrastructure
         {
             var optionsValue = options.InvokeProviderOptions();
 
+            // Query 1: Get the occurrence
             var occurrenceContext = GetDbSet<CronTickerOccurrenceEntity<CronTickerEntity>>();
-
-            var query = optionsValue.Tracking
+            var occurrenceQuery = optionsValue.Tracking
                 ? occurrenceContext
                 : occurrenceContext.AsNoTracking();
 
-            var occurrence = await query
+            var occurrence = await occurrenceQuery
                 .FirstOrDefaultAsync(x => x.Id == tickerId, cancellationToken)
                 .ConfigureAwait(false);
 
-            return occurrence?.CronTicker?.Request;
+            if (occurrence == null)
+                return null;
+
+            // Query 2: Get the CronTicker using CronTickerId
+            var cronTickerContext = GetDbSet<CronTickerEntity>();
+            var cronTickerQuery = optionsValue.Tracking
+                ? cronTickerContext
+                : cronTickerContext.AsNoTracking();
+
+            var cronTicker = await cronTickerQuery
+                .FirstOrDefaultAsync(x => x.Id == occurrence.CronTickerId, cancellationToken)
+                .ConfigureAwait(false);
+
+            return cronTicker?.Request;
         }
 
         public async Task<DateTime> GetEarliestCronTickerOccurrenceById(Guid id, TickerStatus[] tickerStatuses,

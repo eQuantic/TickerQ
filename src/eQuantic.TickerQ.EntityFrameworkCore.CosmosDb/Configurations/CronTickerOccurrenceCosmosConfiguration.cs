@@ -29,20 +29,18 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Configurations
                 .IsConcurrencyToken()
                 .IsRequired(false);
 
-            // Owned navigation for CronTicker (embedded document in Cosmos DB)
-            builder.OwnsOne(o => o.CronTicker, cronTicker =>
-            {
-                cronTicker.Property(c => c.Id).ToJsonProperty("cronTickerId");
-                cronTicker.Property(c => c.Expression).ToJsonProperty("expression");
-                cronTicker.Property(c => c.Function).ToJsonProperty("function");
-                cronTicker.Property(c => c.Request).ToJsonProperty("request");
-                cronTicker.Property(c => c.Retries).ToJsonProperty("retries");
-                cronTicker.Property(c => c.RetryIntervals).ToJsonProperty("retryIntervals");
-                cronTicker.Property(c => c.Description).ToJsonProperty("description");
-                cronTicker.Property(c => c.CreatedAt).ToJsonProperty("createdAt");
-                cronTicker.Property(c => c.UpdatedAt).ToJsonProperty("updatedAt");
-                cronTicker.Property(c => c.InitIdentifier).ToJsonProperty("initIdentifier");
-            });
+            // Map other properties
+            builder.Property(o => o.CronTickerId)
+                .ToJsonProperty("cronTickerId");
+
+            builder.Property(o => o.ExecutionTime)
+                .ToJsonProperty("executionTime");
+
+            builder.Property(o => o.Status)
+                .ToJsonProperty("status");
+
+            // Ignore navigation property (Cosmos DB uses document references, not joins)
+            builder.Ignore(o => o.CronTicker);
         }
     }
 }
