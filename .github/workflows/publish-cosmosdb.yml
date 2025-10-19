@@ -24,7 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get-version.outputs.version }}
-      should_publish: ${{ steps.check.outputs.should_publish }}
+      should_build: ${{ steps.check.outputs.should_build }}
+      should_publish_cosmosdb: ${{ steps.check.outputs.should_publish_cosmosdb }}
 
     steps:
       - name: Checkout code
@@ -60,16 +61,28 @@ jobs:
           URL="https://api.nuget.org/v3-flatcontainer/$PACKAGE_ID/$VERSION/$PACKAGE_ID.$VERSION.nupkg"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
 
+          PUBLISH_BASE="${{ github.event.inputs.publish_base_packages }}"
+
           if [ "$STATUS" = "200" ]; then
             echo "✅ Package $PACKAGE_ID $VERSION already exists on NuGet"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "should_publish_cosmosdb=false" >> $GITHUB_OUTPUT
+
+            # If publish_base_packages=true, we should still build and publish base packages
+            if [ "$PUBLISH_BASE" = "true" ]; then
+              echo "📦 Will publish base packages only"
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            else
+              echo "⏭️  Nothing to publish, skipping workflow"
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "❌ Package $PACKAGE_ID $VERSION does NOT exist on NuGet"
-            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "should_publish_cosmosdb=true" >> $GITHUB_OUTPUT
+            echo "should_build=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Setup .NET 8 and .NET 9
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.should_build == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
@@ -77,7 +90,7 @@ jobs:
             9.0.x
 
       - name: Build dependencies in correct order
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.should_build == 'true'
         run: |
           TICKERQ_VERSION="${{ steps.get-version.outputs.tickerq_version }}"
           COSMOSDB_VERSION="${{ steps.get-version.outputs.version }}"
@@ -147,23 +160,28 @@ jobs:
           cd ./temp-extract && zip -q -r ../temp-nupkgs/eQuantic.TickerQ.EntityFrameworkCore.$TICKERQ_VERSION.nupkg * && cd ..
           rm -rf ./temp-extract
 
-          # Step 5: Build CosmosDb provider with ProjectReferences (for internals access)
-          echo "📦 Building CosmosDb..."
-          dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
-            --configuration Release \
-            -p:GeneratePackageOnBuild=false \
-            -p:TickerQVersion=$TICKERQ_VERSION
+          # Step 5: Build CosmosDb provider if needed
+          SHOULD_PUBLISH_COSMOSDB="${{ steps.check.outputs.should_publish_cosmosdb }}"
+          if [ "$SHOULD_PUBLISH_COSMOSDB" = "true" ]; then
+            echo "📦 Building CosmosDb v$COSMOSDB_VERSION..."
+            dotnet build src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
+              --configuration Release \
+              -p:GeneratePackageOnBuild=false \
+              -p:TickerQVersion=$TICKERQ_VERSION
 
-          # Step 6: Pack CosmosDb with correct TickerQ dependency version
-          echo "📦 Packing CosmosDb v$COSMOSDB_VERSION with TickerQ v$TICKERQ_VERSION dependencies..."
-          dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./nupkgs \
-            -p:PackageVersion=$COSMOSDB_VERSION \
-            -p:TickerQVersion=$TICKERQ_VERSION
+            echo "📦 Packing CosmosDb v$COSMOSDB_VERSION with TickerQ v$TICKERQ_VERSION dependencies..."
+            dotnet pack src/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb/eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.csproj \
+              --configuration Release \
+              --no-build \
+              --output ./nupkgs \
+              -p:PackageVersion=$COSMOSDB_VERSION \
+              -p:TickerQVersion=$TICKERQ_VERSION
+          else
+            echo "⏭️  CosmosDb v$COSMOSDB_VERSION already exists, skipping..."
+            mkdir -p ./nupkgs
+          fi
 
-          # Step 7: Copy base packages to nupkgs if they should be published
+          # Step 6: Copy base packages to nupkgs if they should be published
           if [ "${{ github.event.inputs.publish_base_packages }}" = "true" ]; then
             echo "📦 Copying base eQuantic packages to ./nupkgs for publishing..."
             cp ./temp-nupkgs/eQuantic.TickerQ.$TICKERQ_VERSION.nupkg ./nupkgs/
@@ -176,7 +194,7 @@ jobs:
           rm -f PackageVersion.props
 
       - name: Show package info
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.should_build == 'true'
         run: |
           echo "📦 Package created:"
           for pkg in ./nupkgs/*.nupkg; do
@@ -185,7 +203,7 @@ jobs:
           done
 
       - name: Upload package artifact
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.should_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: cosmosdb-package
@@ -194,7 +212,7 @@ jobs:
 
   publish:
     needs: check-and-build
-    if: needs.check-and-build.outputs.should_publish == 'true'
+    if: needs.check-and-build.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     environment:
       name: production-publish
