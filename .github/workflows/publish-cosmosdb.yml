@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       publish_base_packages:
-        description: 'Publish base packages (TickerQ, Utilities, EFCore)?'
+        description: 'Publish base packages (TickerQ, Utilities, EFCore, Dashboard)?'
         required: false
         type: boolean
         default: true
@@ -119,6 +119,7 @@ jobs:
           # Step 4: Build dependencies with TickerQ version
           dotnet build src/TickerQ/TickerQ.csproj --configuration Release -p:GeneratePackageOnBuild=false
           dotnet build src/TickerQ.EntityFrameworkCore/TickerQ.EntityFrameworkCore.csproj --configuration Release -p:GeneratePackageOnBuild=false
+          dotnet build src/TickerQ.Dashboard/TickerQ.Dashboard.csproj --configuration Release -p:GeneratePackageOnBuild=false
 
           # Step 4.5: Pack base eQuantic packages locally (for CosmosDb restore)
           echo "📦 Packing eQuantic.TickerQ.Utilities v$TICKERQ_VERSION to temp-nupkgs..."
@@ -160,6 +161,21 @@ jobs:
           cd ./temp-extract && zip -q -r ../temp-nupkgs/eQuantic.TickerQ.EntityFrameworkCore.$TICKERQ_VERSION.nupkg * && cd ..
           rm -rf ./temp-extract
 
+          echo "📦 Packing eQuantic.TickerQ.Dashboard v$TICKERQ_VERSION to temp-nupkgs..."
+          dotnet pack src/TickerQ.Dashboard/TickerQ.Dashboard.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./temp-nupkgs \
+            -p:PackageId=eQuantic.TickerQ.Dashboard \
+            -p:PackageVersion=$TICKERQ_VERSION
+
+          # Fix dependencies in eQuantic.TickerQ.Dashboard
+          echo "🔧 Fixing dependencies in eQuantic.TickerQ.Dashboard package..."
+          unzip -q ./temp-nupkgs/eQuantic.TickerQ.Dashboard.$TICKERQ_VERSION.nupkg -d ./temp-extract
+          sed -i 's/<dependency id="TickerQ\.Utilities"/<dependency id="eQuantic.TickerQ.Utilities"/g' ./temp-extract/eQuantic.TickerQ.Dashboard.nuspec
+          cd ./temp-extract && zip -q -r ../temp-nupkgs/eQuantic.TickerQ.Dashboard.$TICKERQ_VERSION.nupkg * && cd ..
+          rm -rf ./temp-extract
+
           # Step 5: Build CosmosDb provider if needed
           SHOULD_PUBLISH_COSMOSDB="${{ steps.check.outputs.should_publish_cosmosdb }}"
           if [ "$SHOULD_PUBLISH_COSMOSDB" = "true" ]; then
@@ -187,6 +203,7 @@ jobs:
             cp ./temp-nupkgs/eQuantic.TickerQ.$TICKERQ_VERSION.nupkg ./nupkgs/
             cp ./temp-nupkgs/eQuantic.TickerQ.Utilities.$TICKERQ_VERSION.nupkg ./nupkgs/
             cp ./temp-nupkgs/eQuantic.TickerQ.EntityFrameworkCore.$TICKERQ_VERSION.nupkg ./nupkgs/
+            cp ./temp-nupkgs/eQuantic.TickerQ.Dashboard.$TICKERQ_VERSION.nupkg ./nupkgs/
             echo "✅ Base packages copied to ./nupkgs"
           fi
 
