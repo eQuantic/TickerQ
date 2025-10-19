@@ -23,6 +23,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="eQuantic.TickerQ.EntityFrameworkCore.CosmosDb" />
+        <InternalsVisibleTo Include="eQuantic.TickerQ.EntityFrameworkCore.MongoDb" />
     </ItemGroup>
 
     <Target Name="CopyAnalyzer" AfterTargets="Build">

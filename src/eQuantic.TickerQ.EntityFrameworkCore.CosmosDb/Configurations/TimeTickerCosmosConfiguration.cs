@@ -24,9 +24,10 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Configurations
             builder.Property(t => t.Id)
                 .ToJsonProperty("id");
 
-            // Concurrency token (ETag in Cosmos DB)
+            // Map LockHolder to _etag (Cosmos DB concurrency token)
             builder.Property(t => t.LockHolder)
-                .IsConcurrencyToken()
+                .ToJsonProperty("_etag")
+                .IsETagConcurrency()
                 .IsRequired(false);
 
             // Ignore navigation properties (not supported in Cosmos DB the same way)

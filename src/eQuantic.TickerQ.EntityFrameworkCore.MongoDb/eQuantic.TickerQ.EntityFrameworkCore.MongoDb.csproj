@@ -6,13 +6,13 @@
         <LangVersion>latest</LangVersion>
 
         <!-- Package Information -->
-        <PackageId>eQuantic.TickerQ.EntityFrameworkCore.CosmosDb</PackageId>
-        <Version>1.0.8</Version>
-        <PackageVersion>1.0.8</PackageVersion>
+        <PackageId>eQuantic.TickerQ.EntityFrameworkCore.MongoDb</PackageId>
+        <Version>1.0.0</Version>
+        <PackageVersion>1.0.0</PackageVersion>
         <Authors>eQuantic</Authors>
         <Company>eQuantic</Company>
-        <Description>Azure Cosmos DB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
-        <PackageTags>tickerq;cosmosdb;azure;efcore;background-jobs;scheduler;equantic</PackageTags>
+        <Description>MongoDB provider for TickerQ - Community maintained by eQuantic (requires .NET 8+)</Description>
+        <PackageTags>tickerq;mongodb;efcore;background-jobs;scheduler;equantic</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>Icon_details.png</PackageIcon>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -36,22 +36,25 @@
         <ProjectReference Include="..\TickerQ.EntityFrameworkCore\TickerQ.EntityFrameworkCore.csproj" PrivateAssets="All" />
     </ItemGroup>
 
-    <!-- EF Core Cosmos PackageReferences (actual runtime dependencies) -->
+    <!-- MongoDB EF Core PackageReferences (actual runtime dependencies) -->
     <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="8.0.21" />
+        <PackageReference Include="MongoDB.EntityFrameworkCore" Version="8.3.2" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.21" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="9.0.10" />
+        <PackageReference Include="MongoDB.EntityFrameworkCore" Version="9.0.2" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
     </ItemGroup>
 
     <!-- eQuantic.TickerQ.* PackageReferences (for package dependencies in .nupkg) -->
     <!-- These are declared for pack only - during build we use ProjectReferences above -->
     <!-- Condition prevents these from being used during local development build -->
-    <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <!-- DISABLED TEMPORARILY - Will use ProjectReferences only -->
+    <!--<ItemGroup Condition="'$(Configuration)' != 'Debug'">
         <PackageReference Include="eQuantic.TickerQ" Version="$(TickerQVersion)" />
         <PackageReference Include="eQuantic.TickerQ.Utilities" Version="$(TickerQVersion)" />
         <PackageReference Include="eQuantic.TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
-    </ItemGroup>
+    </ItemGroup>-->
 
 </Project>
