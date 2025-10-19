@@ -11,8 +11,8 @@ namespace eQuantic.TickerQ.EntityFrameworkCore.CosmosDb.Configurations
             // Cosmos DB specific configuration
             builder.ToContainer("CronTickerOccurrences");
 
-            // Partition key for optimal distribution (by CronTickerId for better query performance)
-            builder.HasPartitionKey(o => o.CronTickerId);
+            // Partition key - use Id to match existing container
+            builder.HasPartitionKey(o => o.Id);
 
             // Primary key
             builder.HasKey(o => o.Id);
